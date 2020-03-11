@@ -9,7 +9,6 @@ const { find, deleted, updated } = require('../../util')
 // 处理获取用户表单请求
 router.get('/home/users', async (req, res) => {
     // console.log(req.query)
-
     try {
         // 定义变量存储查询到的数据
         let data
@@ -51,10 +50,11 @@ router.get('/home/users', async (req, res) => {
 // 处理编辑表单的请求
 router.post('/home/users', async (req, res) => {
     const body = req.body
+    console.log(body)
     try {
         // 更新用户的方法
         const data = await updated(users, body)
-        // console.log(data)
+        console.log(data)
         // 返回用户的消息
         const msg = data.msg
         if (data.code === 1) {
@@ -147,7 +147,19 @@ router.put('/home/pay', async (req, res) => {
     if (price > userinfo[0].minute) {
         return res.status(200).json({
             code: 200,
-            msg: "超出最大欠费金额"
+            msg: "超出最大欠费金额！"
+        })
+    }
+    if (price == 0) {
+        return res.status(200).json({
+            code: 201,
+            msg: "请输入金额！"
+        })
+    }
+    if (price < 0) {
+        return res.status(200).json({
+            code: 500,
+            msg: "请不要给自己增加负担！"
         })
     }
     // 消减金额，修改数据
@@ -167,8 +179,6 @@ router.put('/home/pay', async (req, res) => {
             'toll': {'price':price}
         }
     });
-    console.log(paymsg)
-    console.log(newprice)
     return res.status(200).json({
         code: 1,
         msg: '缴费成功！！'

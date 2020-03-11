@@ -3,70 +3,57 @@ const express = require('express')
 const router = express.Router()
 const { programs } = require('../../models/program')
 const { users } = require('../../models/users')
+const Video = require('../../models/video')
 const { find, updated, findOne } = require('../../util')
-
-// console.log(programs)
-// new programs({
-//     title: 'pfunny',
-//     data: [
-//         {
-//             title: '想见你',
-//             director: '黄天仁',
-//             writer: '简奇峰 / 林欣慧',
-//             star: ' 柯佳嬿 / 许光汉 / 施柏宇 / 颜毓麟 / 严艺文 ',
-//             type: ' 爱情 / 悬疑 / 奇幻',
-//             area: '中国台湾',
-//             language: '汉语普通话',
-//             date: '2019-11-17(中国台湾)',
-//             time: '72分钟',
-//             cover: 'https://img3.doubanio.com/view/photo/s_ratio_poster/public/p2576977981.webp',
-//         }
-//     ],
-// }).save((err, data) => {
-//     if (!err) {
-//         console.log(data)
-//     }
-// })
-
-// const swhere = { title: 'pmovie', "data._id": '5e5a325eadef9e41086f9519' };
-// programs.findOne(swhere,(err,res)=>{
-//         if(err){
-//             console.log(err)
-//         }
-//         console.log(res)
-//     })
-
 
 
 // 处理获取/搜索节目信息请求
 router.get('/home/program', async (req, res) => {
+    if(JSON.stringify(req.query)=='{}'){
+     const alldata = await programs.find({})
+
+     return res.status(200).json({
+         code:0,
+         data:alldata,
+         msg:'获取数据成功！'
+     })
+    }
     const query = req.query
     const type = req.query.sort
+    // console.log(query)
     let result
     try {
         const program = await programs.findOne({ 'title': query.title })
         // console.log(program)
-        // 根据传过来的id查询指定的数据
+        // 根据传过来的id查询指定的数据,视频名称来查询对应数据
         if (query.id || query.name) {
             let index
+            let finddata
             if (query.id) {
                 index = program.data.findIndex((item) => {
                     return item._id == query.id
                 })
+
             } else {
-                // console.log(query.name) 
-                index = program.data.findIndex((item) => {
-                    return item.title === query.name
+                // 模糊查询
+                // console.log(query.name)
+                const reg = new RegExp(query.name, 'i')
+                // console.log(program.data)
+                finddata = program.data.filter((item) => {
+                    return reg.test(item.title)
+                })
+                if (finddata.length === 0) return res.status(200).json({
+                    code: 500,
+                    msg: '查询失败,没有收录该视频!'
+                })
+                return res.status(200).json({
+                    code: 1,
+                    msg: '查询成功',
+                    data: finddata
                 })
             }
-            // console.log(index)
-            if (index === -1) return res.status(200).json({
-                code: 500,
-                msg: '查询失败,没有收录该视频!'
-            })
             // moogoose查询数据内嵌数组数据方法
-            const finddata = await programs.findOne({ title: query.title }, { data: { $slice: [index, 1] } })
-            // console.log(finddata)
+            finddata = await programs.findOne({ title: query.title }, { data: { $slice: [index, 1] } })
             if (finddata.data.length === 0) return res.status(200).json({
                 code: 0,
                 msg: '查询失败'
@@ -79,6 +66,7 @@ router.get('/home/program', async (req, res) => {
         }
         // 获取全部数据
         const total = program.data.length
+
         // 根据type对数据进行排序
         if (type === 'new') {
             result = program.data.slice(0, query.pagesize).reverse()
@@ -93,10 +81,7 @@ router.get('/home/program', async (req, res) => {
                 // console.log(a.Favorite,b.Favorite)
                 return b.Favorite - a.Favorite
             })
-            // result = program.data
-            // console.log(result)
         }
-
         if (result.length === 0) return res.status(200).json({
             code: 0,
             msg: '获取电影数据失败'
@@ -120,19 +105,15 @@ router.get('/home/program', async (req, res) => {
 })
 // 处理添加节目信息请求
 router.post('/home/program', async (req, res) => {
+    // 拿到请求体
     const body = req.body
-    if (body.data.title === '' || body.data.director === '' || body.data.writer === '')
-        return res.status(200).json({
-            code: 5,
-            msg: '数据格式不正确'
-        })
+    // console.log(body)
     try {
         const data = await programs.update({ 'title': body.title }, {
             '$push': {
                 data: body.data
             }
         })
-        console.log(data)
         if (data.ok !== 1) {
             return res.status(200).json({
                 code: 0,
@@ -143,14 +124,6 @@ router.post('/home/program', async (req, res) => {
             code: 1,
             msg: '添加节目信息成功'
         })
-        // const movie = await programs.findOne({'title':query.title})
-        // console.log(movie)
-        // const result = movie.data.slice(0,query.pagesize)
-        // if(result.length===0) return res.status(200).json({
-        //     code:0,
-        //     msg:'获取电影数据失败'
-        // })  
-
     } catch (e) {
         if (e) {
             console.log(e)
@@ -214,18 +187,19 @@ router.put('/home/program', async (req, res) => {
         // 修改数据中指定信息
         const swhere = { title: body.title, "data._id": id };
         const supdate = { $set: { "data.$": body.data } }
+
+        // console.log(supdate)
         const data = await programs.updateOne(swhere, supdate)
-        // console.log(data)
+        console.log(data)
         if (!data.nModified) return res.status(200).json({
             code: 0,
-            msg: '数据更新失败',
+            msg: '基本信息未更改！',
         })
         return res.status(200).json({
             code: 1,
             msg: '数据更新成功'
         })
-    } catch (e) {
-        console.log(e)
+    } catch (e) { 
         if (e) {
             res.status(200).json({
                 code: 500,
@@ -277,14 +251,18 @@ router.put('/home/program/hot', async (req, res) => {
 // 监听用户使用费用
 router.post('/home/program/expense', async (req, res) => {
     const body = req.body
+    // console.log(body)
     // 查询当前用户信息
-    const {result:curuser} = await find(users, { '_id': body._id })
+    const { result: curuser } = await find(users, { '_id': body._id })
     // 用户最新观看时间，单位/秒
     const newminute = curuser[0].minute + parseInt(body.minute)
     // 查询当前节目的信息
     const result = await findOne(programs, body)
-    const curprogram = result.data[0]
-    // console.log(curprogram)
+    result.data.forEach(item => {
+        item.path = body.title
+    });
+    let curprogram = result.data[0]
+    console.log(curprogram)
     // 往用户节目数组里添加数据,如果存在则不添加
     const userprogram = await users.updateOne({
         '_id': body._id,
@@ -294,16 +272,19 @@ router.post('/home/program/expense', async (req, res) => {
             'program': curprogram
         }
     });
-    const minute =await users.updateOne({'_id':body._id},{'minute':newminute})
-    // console.log(minute)
+    const minute = await users.updateOne({ '_id': body._id }, { 'minute': newminute, 'minutes': newminute })
+
+    console.log(minute)
     // console.log(userprogram)
-    if(!minute.nModified)return res.status(200).json({
+    if (!minute.nModified) return res.status(200).json({
         code: 0,
         msg: '数据已存在'
     })
     return res.status(200).json({
         code: 1,
-        msg: '节目添加成功'
+        msg: '记录成功'
     })
 })
+
 module.exports = router
+

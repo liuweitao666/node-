@@ -17,7 +17,7 @@ const secret = 'manager'; //定义密钥
 // })
 
 
-// 处理home界面获取登录用户请求
+// 处理home界面导航数据请求
 router.get('/home/navs', async (req, res) => {
     try {
         const data = await navs.find()

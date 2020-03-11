@@ -14,6 +14,7 @@ const programschma = new Schma({
         data:[
             {
                 title:'',
+                subtitle:'',
                 director:'',
                 writer:'',
                 star:'',
@@ -23,6 +24,7 @@ const programschma = new Schma({
                 date:'',
                 time:'',
                 cover:'',
+                banner:'',
                 bio:{
                     type:String,
                     default:'请填写简介'
@@ -34,6 +36,10 @@ const programschma = new Schma({
                 price:{
                     type:Number,
                     default:0
+                },
+                path:{
+                    type:String,
+                    default:'pmovie'
                 },
                 hot:{
                     type:Number,

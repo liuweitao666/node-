@@ -2,9 +2,20 @@
 
 // 查询方法
 exports.find = async (models, req) => {
+    // console.log(req)
     // 查询数据
     let data
-    const query = req.username||req._id ? req : JSON.parse(req.query)
+    const alluser = await models.find()
+    const total = alluser.length
+    if (req.type === 'total') {
+        return {
+            result: alluser,
+            total,
+            code: 200,
+            msg: '数据获取成功'
+        }
+    }
+    const query = req.username || req._id ? req : JSON.parse(req.query)
     // 对query的键值进行分离
     let key
     for (let k in query) {
@@ -13,9 +24,16 @@ exports.find = async (models, req) => {
     }
     const limit = parseInt(req.limit)
     const pagenum = req.pagenum
-    // console.log(query[key])
+    const reg = new RegExp(query[key], 'i')
+    // console.log(query)
     if (query[key]) {
-        data = await models.find(query)
+        data = await models.find({
+            '$or':[
+                { username: { $regex: reg } },
+                { _id: query._id }
+            ]
+        }
+        )
         // console.log(data)
         if (data.length === 0) return {
             code: 0,
@@ -27,9 +45,9 @@ exports.find = async (models, req) => {
             msg: '查询成功'
         }
     }
+
     // 获取当前users表的全部数据
-    const alluser = await models.find()
-    const total = alluser.length
+
     // console.log(alluser)
     // 限制查询
     data = await models.find().skip((pagenum - 1) * limit).limit(limit)
@@ -85,15 +103,16 @@ exports.updated = async (models, body) => {
 
 }
 // 查询指定数组中的数据
-exports.findOne = async (models,body) =>{
+exports.findOne = async (models, body) => {
     const program = await models.findOne({ 'title': body.title })
+    console.log(program)
     let index = program.data.findIndex((item) => {
         return item._id == body.id
     })
-    if (index === -1) return res.status(200).json({
+    if (index === -1) return {
         code: 500,
         msg: '查询失败,没有收录该视频!'
-    })
+    }
     // moogoose查询数据内嵌数组数据方法
     const finddata = await models.findOne({ title: body.title }, { data: { $slice: [index, 1] } })
     return finddata

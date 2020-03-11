@@ -54,10 +54,15 @@ const usersSchma = new Schma({
     // device
     device: String,
     // 节目历史记录
-
+    // 价格
     minute: {
         type: Number,
         default: 1,
+    },
+    // 时间
+    minutes:{
+        type:Number,
+        default:0
     },
     program: [{
         title: '',
@@ -70,6 +75,10 @@ const usersSchma = new Schma({
         date: '',
         time: '',
         cover: '',
+        path:{
+            type:String,
+            default:'pmovie'
+        },
         bio: {
             type: String,
             default: '请填写简介'

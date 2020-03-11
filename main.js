@@ -1,16 +1,21 @@
 const express = require('express')
 const app = express()
+// 引入路由
 const router = require('./router')
 const rusers = require('./router/home/users')
 const rprograms = require('./router/home/program')
+const rvideo = require('./router/home/videos')
+
 const bodyParser = require('body-parser')
 const session = require('express-session')
 
-const expressJwt = require('express-jwt');//模块引入
+const expressJwt = require('express-jwt');//jwt模块引入
 const secret = 'manager'; //定义密钥 
 
 
+// 暴露静态资源
 app.use('/public',express.static('public'))
+app.use(express.static('dist'))
 
 // 跨域处理
 app.all('*', function (req, res, next) {
@@ -25,6 +30,20 @@ app.all('*', function (req, res, next) {
     next();
 });
 
+
+// jwt错误处理
+// app.use((ctx, next) => {
+//     return next().catch((err) => {
+//         if(err.status === 401){
+//             ctx.status = 401;
+//             ctx.body = 'Protected resource, use Authorization header to get access\n';
+//         }else{
+//             throw err;
+//         }
+//     })
+// })
+
+// 验证token
 app.use(expressJwt({
     secret
 }).unless({
@@ -35,7 +54,7 @@ app.engine('html', require('express-art-template'));
 app.use(bodyParser.urlencoded({ extended: false })) // parse application/x-www-form-urlencoded 
 app.use(bodyParser.json())
 
-
+// session，虽然没用到
 app.use(session({
     secret: 'tvmaneger',
     resave: false,
@@ -46,6 +65,7 @@ app.use(session({
 app.use(router)
 app.use(rusers)
 app.use(rprograms)
+app.use(rvideo)
 
 app.listen(3000, () => {
     console.log('serve is running... ')
