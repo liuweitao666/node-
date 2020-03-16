@@ -5,7 +5,9 @@ const router = require('./router')
 const rusers = require('./router/home/users')
 const rprograms = require('./router/home/program')
 const rvideo = require('./router/home/videos')
+const rcomment = require('./router/comments')
 
+// 
 const bodyParser = require('body-parser')
 const session = require('express-session')
 
@@ -66,6 +68,8 @@ app.use(router)
 app.use(rusers)
 app.use(rprograms)
 app.use(rvideo)
+app.use(rcomment)
+
 
 app.listen(3000, () => {
     console.log('serve is running... ')

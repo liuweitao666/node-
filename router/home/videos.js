@@ -90,7 +90,6 @@ router.put('/home/video', async (req, res) => {
             type: body.type,
         })
     }
-    console.log(body)
     const updatesrc = await Video.updateOne({ title: body.title }, { "$push": { "Src": { 'src': body.Src } } })
     if (!updatesrc.nModified) return res.status(200).json({
         code: 0,

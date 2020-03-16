@@ -1,26 +1,60 @@
 const express = require('express')
+require('best-require')(process.cwd())
+
 // 调用express.router方法
 const router = express.Router()
 const { programs } = require('../../models/program')
-const { users } = require('../../models/users')
-const Video = require('../../models/video')
-const { find, updated, findOne } = require('../../util')
+const { users } = require('~/models/users')
+const Video = require('~/models/video')
+const { find, deleted, findOne } = require('../../util')
 
+// 查询内嵌数组单个元素
+let finddataOne = async (title, id) => {
+    const program = await programs.findOne({ 'title': title })
+    let index = program.data.findIndex((item) => {
+        return item._id == id
+    })
+    const finddata = await programs.findOne({ title: title }, { data: { $slice: [index, 1] } })
+    return finddata
+}
+
+// 上传图片的核心模块
+const fs = require('fs')
+const path = require('path')
+const multer = require('multer')
+const upload = multer({ dest: './public/image/program' })
+
+// 删除文件的方法
+function deleteFile(delPath, direct) {
+    delPath = direct ? delPath : path.join(__dirname, delPath)
+    try {
+        /**
+         * @des 判断文件或文件夹是否存在
+         */
+        if (fs.existsSync(delPath)) {
+            fs.unlinkSync(delPath);
+        } else {
+            console.log('inexistence path：', delPath);
+        }
+    } catch (error) {
+        console.log('del error', error);
+    }
+}
 
 // 处理获取/搜索节目信息请求
 router.get('/home/program', async (req, res) => {
-    if(JSON.stringify(req.query)=='{}'){
-     const alldata = await programs.find({})
+    if (JSON.stringify(req.query) == '{}') {
+        const alldata = await programs.find({})
 
-     return res.status(200).json({
-         code:0,
-         data:alldata,
-         msg:'获取数据成功！'
-     })
+        return res.status(200).json({
+            code: 0,
+            data: alldata,
+            msg: '获取数据成功！'
+        })
     }
     const query = req.query
     const type = req.query.sort
-    // console.log(query)
+
     let result
     try {
         const program = await programs.findOne({ 'title': query.title })
@@ -69,7 +103,13 @@ router.get('/home/program', async (req, res) => {
 
         // 根据type对数据进行排序
         if (type === 'new') {
-            result = program.data.slice(0, query.pagesize).reverse()
+            program.data.forEach((item)=>{
+                item.updatetime = new Date(item.updatetime+'') 
+               console.log(item.updatetime)
+            })
+            result = program.data.slice(0, query.pagesize).sort((a, b) => {
+                return  b.updatetime - a.updatetime ;
+            })
         } else if (type === 'hot') {
 
             result = program.data.slice(0, query.pagesize).sort((a, b) => {
@@ -138,18 +178,36 @@ router.post('/home/program', async (req, res) => {
 // 处理删除节目信息请求
 router.delete('/home/program', async (req, res) => {
     const params = req.query
-    console.log(params)
+    const stitle = req.query.stitle
+    // return  console.log(params) 
     if (params.title === '' || params.id === '')
         return res.status(200).json({
             code: 5,
             msg: '数据格式不正确'
         })
     try {
+        // 查询节目的视频信息删除视频链接
+        const result = await Video.deleteOne({ 'title': stitle })
+        console.log(result)
+        if (!result.deletedCount) return res.status(200).json({
+            code: 500,
+            msg: '删除失败！'
+        })
+        // 删除对应节目的图片
+        const finddata = await finddataOne(params.title, params.id)
+
+        const coverpath = finddata.data[0].cover
+        const bannerpath = finddata.data[0].banner
+        deleteFile('.' + coverpath, 'd')
+        deleteFile('.' + bannerpath, 'd')
+        // 删除对应数据
         const data = await programs.updateOne({ 'title': params.title }, {
             '$pull': {
                 data: { '_id': params.id }
             }
         })
+        console.log(data)
+        // 判断是否成功
         if (data.nModified !== 1) {
             return res.status(200).json({
                 code: 0,
@@ -160,14 +218,6 @@ router.delete('/home/program', async (req, res) => {
             code: 1,
             msg: '删除成功'
         })
-        // const movie = await programs.findOne({'title':query.title})
-        // console.log(movie)
-        // const result = movie.data.slice(0,query.pagesize)
-        // if(result.length===0) return res.status(200).json({
-        //     code:0,
-        //     msg:'获取电影数据失败'
-        // })  
-
     } catch (e) {
         if (e) {
             console.log(e)
@@ -183,6 +233,7 @@ router.delete('/home/program', async (req, res) => {
 router.put('/home/program', async (req, res) => {
     const body = req.body
     const id = body.data._id
+    // console.log(body)
     try {
         // 修改数据中指定信息
         const swhere = { title: body.title, "data._id": id };
@@ -190,7 +241,7 @@ router.put('/home/program', async (req, res) => {
 
         // console.log(supdate)
         const data = await programs.updateOne(swhere, supdate)
-        console.log(data)
+        // console.log(data)
         if (!data.nModified) return res.status(200).json({
             code: 0,
             msg: '基本信息未更改！',
@@ -199,7 +250,7 @@ router.put('/home/program', async (req, res) => {
             code: 1,
             msg: '数据更新成功'
         })
-    } catch (e) { 
+    } catch (e) {
         if (e) {
             res.status(200).json({
                 code: 500,
@@ -286,5 +337,145 @@ router.post('/home/program/expense', async (req, res) => {
     })
 })
 
+// 上传节目图片
+router.post('/home/program/upload', upload.single('program'), async (req, res) => {
+    let oldfilename = req.file.destination + "/" + req.file.filename
+    let newfilename = req.file.destination + '/' + req.file.filename + req.file.originalname
+    let id = req.body.id
+    let title = req.body.title
+    let cover = req.body.cover
+    let curavatar
+    try {
+        const program = await programs.findOne({ 'title': title })
+        // console.log(program)
+        fs.rename(oldfilename, newfilename, async (err) => {
+            if (err) return res.status(200).json({
+                code: 500,
+                msg: '服务器出错！！！'
+            })
+            if (id === 'undefined') {
+                // 添加图片
+                curavatar = newfilename.slice(1)
+            } else {
+                // 更新图片
+                let index = program.data.findIndex((item) => {
+                    return item._id == id
+                })
+                const finddata = await programs.findOne({ title: title }, { data: { $slice: [index, 1] } })
+                const path = finddata.data[0].cover
+                const banner = finddata.data[0].banner
+                console.log(cover)
+                // 判断是否为cover上传
+                if (cover !== 'undefined') {
+                    deleteFile('.' + path, 'direct')
+                } else {
+                    console.log('banner')
+                    deleteFile('.' + banner, 'direct')
+                }
+                curavatar = newfilename.slice(1)
+            }
+            return res.status(200).json({
+                code: 1,
+                msg: curavatar
+            })
+        })
+    } catch (e) {
+        console.log(e)
+    }
+})
+
+// 用户评论
+router.post('/home/program/comments', async (req, res) => {
+    const body = req.body
+    if (!body.comments.content) return res.status(200).json({
+        code: 500,
+        msg: "不能为空"
+    })
+    const swhere = { title: body.title };
+    const supdate = {
+        "$push": {
+            comments: body.comments
+        }
+    }
+
+    const data = await programs.updateOne(swhere, supdate)
+
+    return res.status(200).json({
+        code: 1,
+        msg: '评论成功'
+    })
+})
+// 获取用户评论
+router.get('/home/program/comments', async (req, res) => {
+    const query = req.query
+    const program = await programs.findOne({ 'title': query.title })
+
+    const reg = new RegExp(query.id, 'i')
+    // console.log(program.data)
+    const finddata = program.comments.filter((item) => {
+        return reg.test(item.id)
+    })
+
+    if (finddata.length === 0) return res.status(200).json({
+        code: 0,
+        data: null
+    })
+    return res.status(200).json({
+        code: 1,
+        data: finddata
+    })
+})
+// 删除用户评论
+router.delete('/home/program/comments', async (req, res) => {
+    const params = req.query
+    console.log(params)
+    // 删除对应数据
+    const data = await programs.updateOne({ 'title': params.title }, {
+        '$pull': {
+            comments: { '_id': params.id }
+        }
+    })
+
+    if (!data.nModified) return res.status(200).json({
+        code: 0,
+        msg: '删除失败'
+    })
+    res.status(200).json({
+        code: 1,
+        msg: '删除成功'
+    })
+})
+// update用户评论
+router.put('/home/program/comments', async (req, res) => {
+
+    const params = req.body
+    const id = params.id
+    const swhere = { 'comments._id': id };
+    let newval = params.value + 1
+    let supdate
+    try {
+        if (params.type) {
+            supdate = { $set: { 'comments.$.thumbs': newval } }
+        }else{
+            supdate = { $set: { 'comments.$.Nrecom': newval } }
+        }
+        const data = await programs.updateOne(swhere, supdate)
+        if(!data.nModified) return res.status(200).json({
+            code:0,
+            msg:'服务器出错，请稍后再试！'
+        })
+        res.status(200).json({
+            code: 1,
+            msg: '已更新'
+        })
+    } catch (e) {
+        console.log(e)
+        return res.status(200).json({
+            code:0,
+            msg:'网络有问题，请稍后重试！'
+        })
+    }
+
+})
 module.exports = router
 

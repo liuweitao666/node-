@@ -60,9 +60,9 @@ const usersSchma = new Schma({
         default: 1,
     },
     // 时间
-    minutes:{
-        type:Number,
-        default:0
+    minutes: {
+        type: Number,
+        default: 0
     },
     program: [{
         title: '',
@@ -75,9 +75,9 @@ const usersSchma = new Schma({
         date: '',
         time: '',
         cover: '',
-        path:{
-            type:String,
-            default:'pmovie'
+        path: {
+            type: String,
+            default: 'pmovie'
         },
         bio: {
             type: String,
@@ -116,7 +116,16 @@ const usersSchma = new Schma({
             }
         }
 
-    ]
+    ],
+    history: [{
+        createtime: {
+            type: Date,
+            default: Date.now
+        },
+        value: {
+            type: String
+        }
+    }]
 })
 exports.users = mongoose.model('User', usersSchma)
 

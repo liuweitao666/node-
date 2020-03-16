@@ -1,6 +1,7 @@
 const express = require('express')
 // 调用express.router方法
 const router = express.Router()
+
 // 引入数据库model
 const { users } = require('../../models/users')
 
@@ -110,7 +111,6 @@ router.delete('/home/users', async (req, res) => {
 // 处理删除历史记录
 router.delete('/home/rehistory', async (req, res) => {
     const params = req.query
-    console.log(params)
     // let data
     try {
 
@@ -119,7 +119,6 @@ router.delete('/home/rehistory', async (req, res) => {
                 'program': { '_id': params._id }
             }
         })
-        console.log(data)
         if (data.nModified !== 1) {
             return res.status(200).json({
                 code: 0,
