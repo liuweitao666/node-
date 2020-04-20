@@ -50,9 +50,23 @@ router.post('/home/video', async (req, res) => {
 // 获取视频链接
 router.get('/home/video', async (req, res) => {
     const params = req.query
-    // console.log(params)
 
     try {
+        // 获取全部视频的链接地址
+        if (params.type) {
+            const result = await Video.find({})
+            if (result.length > 0) {
+                return res.status(200).json({
+                    code: 200,
+                    msg: '获取视频链接成功！',
+                    data: result
+                })
+            }
+            return res.status(200).json({
+                code: 0,
+                msg: '获取视频链接失败！',
+            })
+        }
         // 找到对应标题得src，视频路径
         const data = await Video.find({ title: params.title })
         // console.log(data)
@@ -133,9 +147,9 @@ router.put('/home/videoById', async (req, res) => {
     // console.log(body)
     try {
         // 修改数据中指定信息
-        const  swhere = { 'Src._id': id };
-        const  supdate = { $set: { 'Src.$.src': body.src } }
-        
+        const swhere = { 'Src._id': id };
+        const supdate = { $set: { 'Src.$.src': body.src } }
+
         // console.log(supdate)
         const data = await Video.updateOne(swhere, supdate)
         if (!data.nModified) return res.status(200).json({

@@ -1,5 +1,7 @@
 // const { models } = require('./models/users')
 
+const nodemailer = require("nodemailer");
+
 // 查询方法
 exports.find = async (models, req) => {
     // console.log(req)
@@ -28,9 +30,10 @@ exports.find = async (models, req) => {
     // console.log(query)
     if (query[key]) {
         data = await models.find({
-            '$or':[
+            '$or': [
                 { username: { $regex: reg } },
-                { _id: query._id }
+                { _id: query._id },
+                { email: query.username }
             ]
         }
         )
@@ -50,7 +53,11 @@ exports.find = async (models, req) => {
 
     // console.log(alluser)
     // 限制查询
-    data = await models.find().skip((pagenum - 1) * limit).limit(limit)
+    if (req.type === 'common') {
+        data = await models.find({ 'status': 0 }).skip((pagenum - 1) * limit).limit(limit)
+    } else {
+        data = await models.find().skip((pagenum - 1) * limit).limit(limit)
+    }
     if (data.length === 0) return {
         code: 0,
         msg: '数据获取失败'
@@ -116,4 +123,51 @@ exports.findOne = async (models, body) => {
     // moogoose查询数据内嵌数组数据方法
     const finddata = await models.findOne({ title: body.title }, { data: { $slice: [index, 1] } })
     return finddata
+}
+
+// 发送邮箱验证码的方法
+exports.sendCode = async (code, mail) => {
+    "use strict";
+    //   let testAccount = await nodemailer.createTestAccount();
+    console.log(code)
+    // create reusable transporter object using the default SMTP transport
+    let transporter = nodemailer.createTransport({
+        service: 'qq',
+        port: 465,
+        secure: true, // true for 465, false for other ports
+        auth: {
+            user: '1352819275@qq.com', // generated ethereal user
+            pass: 'fgzlafpsdpzzjacj' // generated ethereal password
+        }
+    });
+    let mailoptions = {
+        from: '"我是你的乖乖 👻" <1352819275@qq.com>', // sender address
+        to: mail, // list of receivers
+        subject: "欢迎注册TV管理系统！", // Subject line
+        // text: "Hello world?", // plain text body
+        html: `<b>您的验证码是${code},有效时间为3分钟！</b>` // html body
+    }
+    // send mail with defined transport object 发送邮件
+    return new Promise((resolve, reject) => {
+        transporter.sendMail(mailoptions, (err) => {
+            if (err) {
+                return reject({
+                    code: 500,
+                    msg: '发送验证码失败，请稍后再试！'
+                })
+            }
+            return resolve({
+                code: 200,
+                msg: '发送验证码成功，请前往邮箱查看！'
+            })
+        });
+
+    })
+
+    // console.log("Message sent: %s", info.messageId);
+    // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+    // Preview only available when sending through an Ethereal account
+    // console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+    // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
 }

@@ -143,13 +143,8 @@ const navSchma = new Schma({
         enum: [0, 1, 2],
         default: 1
     },
-    children: {
-        type: Array,
-        default: undefined
-    }
 })
 const navs = mongoose.model('Nav', navSchma)
-
 
 // 导航数据
 // const navigation = [
@@ -158,29 +153,34 @@ const navs = mongoose.model('Nav', navSchma)
 //         children:[
 //             {name:'用户管理',path:'infousers'},
 //         ],
+//         status:1
 //     },
 //     {
 //         title:'节目管理',
 //         children:[
+//             {name:'频道信息',path:'channel'},
 //             {name:'电影类',path:'pmovie'},
 //             {name:'电视剧类',path:'ptvseries'},
 //             {name:'综艺类',path:'pvariety'},
-//             {name:'搞笑类',path:'pfunny'}
-//         ]
+//             {name:'动画类',path:'pfunny'},
+//         ],
+//         status:0
 //     },
 //     {
 //         title:'报表管理',
 //         children:[
 //             {name:'用户报表',path:'repusers'},
 //             {name:'节目报表',path:'reprogram'}
-//         ]
+//         ],
+//         status:1
 //     },
 //     {
 //         title:'设备管理',
 //         children:[
-//             {name:'电视设备',path:'devicetv'},
-//             {name:'电脑设备',path:'devicepc'}
+//             {name:'故障设备',path:'devicetv'},
+//             {name:'设备报修',path:'devicepc'}
 //         ],
+//         status:0
 //     },
 //     {
 //         title:'收费管理',
@@ -188,9 +188,10 @@ const navs = mongoose.model('Nav', navSchma)
 //             {name:'用户费用',path:'tolluser'},
 //             {name:'缴费',path:'tolluay'}
 //         ],
+//         status:0
 //     }
 // ]
-// // 插入导航数据
+// // // 插入导航数据
 // navs.insertMany(navigation,function(err){
 //     console.log(err);
 //   });
@@ -198,6 +199,14 @@ const navs = mongoose.model('Nav', navSchma)
 // 导出导航model
 exports.navs = navs
 
+
+//  navs.update({ 'title': '节目管理' }, {
+//     '$push': {
+//         children: {'name':'频道信息','path':'channel'}
+//     }
+// },(err,doc)=>{
+//     console.log(doc)
+// })
 
 // const admin = new users({
 //     username:'lwt',

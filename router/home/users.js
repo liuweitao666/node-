@@ -113,7 +113,21 @@ router.delete('/home/rehistory', async (req, res) => {
     const params = req.query
     // let data
     try {
-
+        if(params.type){
+            const data = await users.updateOne({ '_id': params.id }, {
+                '$pull': {
+                    'program': {}
+                }
+            })
+            if(data.nModified!==1) return res.status(200).json({
+                code:0,
+                msg:'删除失败！'
+            })
+            return res.status(200).json({
+                code:1,
+                msg:'删除成功！'
+            })
+        }
         const data = await users.updateOne({ '_id': params.id }, {
             '$pull': {
                 'program': { '_id': params._id }

@@ -103,21 +103,21 @@ router.get('/home/program', async (req, res) => {
 
         // 根据type对数据进行排序
         if (type === 'new') {
-            program.data.forEach((item)=>{
-                item.updatetime = new Date(item.updatetime+'') 
-               console.log(item.updatetime)
+            program.data.forEach((item) => {
+                item.updatetime = new Date(item.updatetime + '')
+                //    console.log(item.updatetime)
             })
-            result = program.data.slice(0, query.pagesize).sort((a, b) => {
-                return  b.updatetime - a.updatetime ;
+            result = program.data.sort((a, b) => {
+                return b.updatetime - a.updatetime;
             })
         } else if (type === 'hot') {
 
-            result = program.data.slice(0, query.pagesize).sort((a, b) => {
+            result = program.data.sort((a, b) => {
                 return b.hot - a.hot
             })
             // result = program.data
         } else if (type === 'recommend') {
-            result = program.data.slice(0, query.pagesize).sort((a, b) => {
+            result = program.data.sort((a, b) => {
                 // console.log(a.Favorite,b.Favorite)
                 return b.Favorite - a.Favorite
             })
@@ -281,7 +281,20 @@ router.put('/home/program/hot', async (req, res) => {
         const swhere = { 'data._id': id };
         if (keys[1] === 'hot') {
             supdate = { $set: { 'data.$.hot': newval } }
-
+            // 查询当前节目的信息
+            // const result = await findOne(programs, body)
+            // result.data.forEach(item => {
+            //     item.path = body.title
+            // });
+            // let curprogram = result.data[0]
+            // await users.updateOne({
+            //     '_id': body._id,
+            //     "program._id": { $ne: curprogram._id }
+            // }, {
+            //     $push: {
+            //         'program': curprogram
+            //     }
+            // });
         } else {
             supdate = { $set: { 'data.$.Favorite': newval } }
         }
@@ -302,7 +315,6 @@ router.put('/home/program/hot', async (req, res) => {
 // 监听用户使用费用
 router.post('/home/program/expense', async (req, res) => {
     const body = req.body
-    // console.log(body)
     // 查询当前用户信息
     const { result: curuser } = await find(users, { '_id': body._id })
     // 用户最新观看时间，单位/秒
@@ -313,7 +325,7 @@ router.post('/home/program/expense', async (req, res) => {
         item.path = body.title
     });
     let curprogram = result.data[0]
-    console.log(curprogram)
+
     // 往用户节目数组里添加数据,如果存在则不添加
     const userprogram = await users.updateOne({
         '_id': body._id,
@@ -324,9 +336,6 @@ router.post('/home/program/expense', async (req, res) => {
         }
     });
     const minute = await users.updateOne({ '_id': body._id }, { 'minute': newminute, 'minutes': newminute })
-
-    console.log(minute)
-    // console.log(userprogram)
     if (!minute.nModified) return res.status(200).json({
         code: 0,
         msg: '数据已存在'
@@ -364,12 +373,12 @@ router.post('/home/program/upload', upload.single('program'), async (req, res) =
                 const finddata = await programs.findOne({ title: title }, { data: { $slice: [index, 1] } })
                 const path = finddata.data[0].cover
                 const banner = finddata.data[0].banner
-                console.log(cover)
+
                 // 判断是否为cover上传
                 if (cover !== 'undefined') {
                     deleteFile('.' + path, 'direct')
                 } else {
-                    console.log('banner')
+
                     deleteFile('.' + banner, 'direct')
                 }
                 curavatar = newfilename.slice(1)
@@ -409,26 +418,35 @@ router.post('/home/program/comments', async (req, res) => {
 router.get('/home/program/comments', async (req, res) => {
     const query = req.query
     const program = await programs.findOne({ 'title': query.title })
-
     const reg = new RegExp(query.id, 'i')
     // console.log(program.data)
-    const finddata = program.comments.filter((item) => {
+    let finddata = program.comments.filter((item) => {
         return reg.test(item.id)
     })
-
+    // 获取每个用户最新的头像
     if (finddata.length === 0) return res.status(200).json({
         code: 0,
         data: null
     })
-    return res.status(200).json({
-        code: 1,
-        data: finddata
+    finddata.forEach(async (item,index) => {
+        // console.log(item.username)
+        let data = await users.findOne({ 'username': item.username })
+        let avatar = data.avatar
+        item.avatar = avatar
+        if (index === finddata.length-1) {
+            console.log(finddata)
+            return res.status(200).json({
+                code: 1,
+                data: finddata
+            })
+        }
+        console.log(item.avatar)
     })
 })
 // 删除用户评论
 router.delete('/home/program/comments', async (req, res) => {
     const params = req.query
-    console.log(params)
+    // console.log(params)
     // 删除对应数据
     const data = await programs.updateOne({ 'title': params.title }, {
         '$pull': {
@@ -456,13 +474,13 @@ router.put('/home/program/comments', async (req, res) => {
     try {
         if (params.type) {
             supdate = { $set: { 'comments.$.thumbs': newval } }
-        }else{
+        } else {
             supdate = { $set: { 'comments.$.Nrecom': newval } }
         }
         const data = await programs.updateOne(swhere, supdate)
-        if(!data.nModified) return res.status(200).json({
-            code:0,
-            msg:'服务器出错，请稍后再试！'
+        if (!data.nModified) return res.status(200).json({
+            code: 0,
+            msg: '服务器出错，请稍后再试！'
         })
         res.status(200).json({
             code: 1,
@@ -471,8 +489,8 @@ router.put('/home/program/comments', async (req, res) => {
     } catch (e) {
         console.log(e)
         return res.status(200).json({
-            code:0,
-            msg:'网络有问题，请稍后重试！'
+            code: 0,
+            msg: '服务器出错，请稍后重试！'
         })
     }
 

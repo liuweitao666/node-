@@ -6,6 +6,7 @@ const rusers = require('./router/home/users')
 const rprograms = require('./router/home/program')
 const rvideo = require('./router/home/videos')
 const rcomment = require('./router/comments')
+const rdevice= require('./router/home/device')
 
 // 
 const bodyParser = require('body-parser')
@@ -49,7 +50,7 @@ app.all('*', function (req, res, next) {
 app.use(expressJwt({
     secret
 }).unless({
-    path: ['/login','/registered']  //除了这些地址，其他的URL都需要验证
+    path: ['/login','/registered','/sendmCode','/login/mail']  //除了这些地址，其他的URL都需要验证
 }));
 
 app.engine('html', require('express-art-template'));
@@ -69,7 +70,7 @@ app.use(rusers)
 app.use(rprograms)
 app.use(rvideo)
 app.use(rcomment)
-
+app.use(rdevice)
 
 app.listen(3000, () => {
     console.log('serve is running... ')

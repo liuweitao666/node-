@@ -4,7 +4,7 @@ const Schma = mongoose.Schema
 
 mongoose.connect('mongodb://localhost:27017/manager', { useNewUrlParser: true, useUnifiedTopology: true })
 
-const hisSchma = new Schma({
+const hisSchma = new Schma({ 
     createtime:{
         type:Date,
         default:Date.now

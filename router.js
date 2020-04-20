@@ -18,6 +18,11 @@ const md5 = require('js-md5')
 const Jwt = require('jsonwebtoken');//模块引入
 const secret = 'manager'; //定义密钥 
 
+// 保存邮箱验证码
+let mailcode = {}
+
+// 引入发送邮箱验证码的方法
+const { sendCode } = require('./util')
 
 // 删除文件的方法
 function deleteFile(delPath, direct) {
@@ -64,12 +69,38 @@ router.post('/login', async (req, res) => {
     // 接受客户端发送发送过来的post数据
     try {
         const body = req.body
+        // 邮箱登录验证
+        if (body.email) {
+            if (!body.code) return res.status(200).json({
+                error_code: -1,
+                msg: '验证码不能为空！',
+            })
+            if (parseInt(body.code) !== mailcode.mcode) return res.status(200).json({
+                error_code: -1,
+                msg: '验证码错误！',
+            })
+            // 将查询到的数据保存到session中
+            const data = await users.findOne({ "email": body.email })
+            // 设置验证token
+            const token = Jwt.sign(Object.assign({}, data.username), secret, {
+                expiresIn: 60 * 60 * 2 // 过期时间
+            })
+            // console.log(req.session.user)
+            return res.status(200).json({
+                error_code: 1,
+                msg: '登录成功',
+                token
+            })
+        }
         body.password = md5(md5(body.password))
         // 从数据库中查询数据
-        if (!(await users.findOne({ "username": body.username }))) {
+        if (!(await users.findOne({
+            "$or": [{ "username": body.username },
+            { "email": body.username }]
+        }))) {
             return res.status(200).json({
                 error_code: -1,
-                msg: '用户名错误或未注册'
+                msg: '用户名/邮箱错误或未注册'
             })
         }
         if (!(await users.findOne({ "password": body.password }))) {
@@ -79,7 +110,10 @@ router.post('/login', async (req, res) => {
             })
         }
         // 将查询到的数据保存到session中
-        const data = await users.findOne({ "username": body.username })
+        const data = await users.findOne({
+            "$or": [{ "username": body.username },
+            { "email": body.username }]
+        })
         req.session.islogin = true
         req.session.user = data
         // 设置验证token
@@ -96,11 +130,72 @@ router.post('/login', async (req, res) => {
         console.log(e)
     }
 })
+// 处理登录邮箱验证码请求
+router.post('/login/mail', async (req, res) => {
+    const email = req.body.email
+    if (email.length === 0) return res.status(200).json({
+        code: -1,
+        msg: '邮箱不能为空！'
+    })
+    const result = await users.findOne({ "email": email })
+    if (!result) {
+        return res.status(200).json({
+            code: -1,
+            msg: "该邮箱未注册！",
+        })
+    }
+    const code = parseInt(Math.random() * 1000000)
+    const data = await sendCode(code, email)
+    // 判断邮箱验证码，是否发送成功
+    if (data.code !== 200) return res.status(200).json({
+        code: 500,
+        msg: data.msg,
+    })
+    mailcode.mcode = code
+    return res.status(200).json({
+        code: 1,
+        msg: data.msg,
+        data: mailcode
+    })
+})
+// 发送邮箱验证码
+router.post('/sendmCode', async (req, res) => {
+    const mail = req.body.email
+    try {
+        if (!mail) return res.status(200).json({
+            code: -1,
+            msg: "邮箱不能为空！",
+        })
+        const result = await users.findOne({ "email": mail })
+        if (result) {
+            return res.status(200).json({
+                code: -1,
+                msg: "该邮箱已注册！",
+            })
+        }
+        const code = parseInt(Math.random() * 1000000)
+        const data = await sendCode(code, mail)
+        // 判断邮箱验证码，是否发送成功
+        if (data.code !== 200) return res.status(200).json({
+            code: 500,
+            msg: data.msg,
+        })
+        mailcode.mcode = code
+        return res.status(200).json({
+            code: 1,
+            msg: data.msg,
+            data: mailcode
+        })
+    } catch (e) {
+        console.log(e)
+    }
+
+})
 // 处理注册请求
 router.post('/registered', (req, res) => {
     const body = req.body
-    // console.log(body)
     // 使用$or查询用户名或者邮箱
+
     users.findOne({
         "$or": [{ "username": body.username },
         { "email": body.email }]
@@ -114,8 +209,20 @@ router.post('/registered', (req, res) => {
                     msg: '用户名或者邮箱已存在'
                 })
             } else {
+                if (!body.mailcode) {
+                    return res.status(200).json({
+                        error_code: 5,
+                        msg: '验证码不能为空！'
+                    })
+                } else if (parseInt(body.mailcode) !== mailcode.mcode) {
+                    return res.status(200).json({
+                        error_code: 500,
+                        msg: '验证码错误！'
+                    })
+                }
                 // 否则证明用户不存在，就往数据库里添加这条数据
                 body.password = md5(md5(body.password))
+                delete body.mailcode
                 new users(body).save((err, data) => {
                     if (err) {
                         return res.status(500).json({
@@ -198,12 +305,13 @@ router.delete('/home/shistory', async (req, res) => {
 router.post('/home/upload/avatar', upload.single('avatar'), async (req, res) => {
     let oldfilename = req.file.destination + "/" + req.file.filename
     let newfilename = req.file.destination + '/' + req.file.filename + req.file.originalname
-    console.log(req.body)
     try {
         let username = req.body.username
         const img = await users.findOne({ 'username': username })
         // 更新前删除对应图片
-        deleteFile(img.avatar)
+        if (img.avatar !== '/public/image/avatar-default.png') {
+            deleteFile(img.avatar)
+        }
         // 更改头像
         fs.rename(oldfilename, newfilename, async (err) => {
             if (err) return res.status(200).json({
