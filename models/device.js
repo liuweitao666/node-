@@ -50,7 +50,15 @@ const deiceschma = new Schma({
         type:String,
         required:true
     },
+    datetime:{
+        type:String,
+        default:''
+    },
     Aphone:{
+        type:String,
+        default:''
+    },
+    avatar:{
         type:String,
         default:''
     }

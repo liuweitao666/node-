@@ -463,7 +463,7 @@ router.delete('/home/program/comments', async (req, res) => {
         msg: '删除成功'
     })
 })
-// update用户评论
+// update用户评论(点赞/踩)
 router.put('/home/program/comments', async (req, res) => {
 
     const params = req.body

@@ -8,7 +8,8 @@ exports.find = async (models, req) => {
     // 查询数据
     let data
     const alluser = await models.find()
-    const total = alluser.length
+    let total
+    total = alluser.length
     if (req.type === 'total') {
         return {
             result: alluser,
@@ -29,21 +30,31 @@ exports.find = async (models, req) => {
     const reg = new RegExp(query[key], 'i')
     // console.log(query)
     if (query[key]) {
+        let alldata = await models.find({
+            '$or': [
+                { username: { $regex: reg } },
+                { _id: query._id },
+                { email: { $regex: reg } }
+            ]
+        }
+        )
         data = await models.find({
             '$or': [
                 { username: { $regex: reg } },
                 { _id: query._id },
-                { email: query.username }
+                { email: { $regex: reg } }
             ]
         }
-        )
+        ).skip((pagenum - 1) * limit).limit(limit)
         // console.log(data)
         if (data.length === 0) return {
             code: 0,
-            msg: '查询失败，数据不存在'
+            msg: '用户不存在！'
         }
+        total = alldata.length
         return {
             result: data,
+            total,
             code: 1,
             msg: '查询成功'
         }
@@ -54,6 +65,8 @@ exports.find = async (models, req) => {
     // console.log(alluser)
     // 限制查询
     if (req.type === 'common') {
+        let alldata =  await models.find({ 'status': 0 })
+        total = alldata.length
         data = await models.find({ 'status': 0 }).skip((pagenum - 1) * limit).limit(limit)
     } else {
         data = await models.find().skip((pagenum - 1) * limit).limit(limit)
@@ -129,7 +142,6 @@ exports.findOne = async (models, body) => {
 exports.sendCode = async (code, mail) => {
     "use strict";
     //   let testAccount = await nodemailer.createTestAccount();
-    console.log(code)
     // create reusable transporter object using the default SMTP transport
     let transporter = nodemailer.createTransport({
         service: 'qq',
@@ -137,7 +149,7 @@ exports.sendCode = async (code, mail) => {
         secure: true, // true for 465, false for other ports
         auth: {
             user: '1352819275@qq.com', // generated ethereal user
-            pass: 'fgzlafpsdpzzjacj' // generated ethereal password
+            pass: 'rxrcpfhaxmmhjiha' // generated ethereal password
         }
     });
     let mailoptions = {
@@ -147,9 +159,12 @@ exports.sendCode = async (code, mail) => {
         // text: "Hello world?", // plain text body
         html: `<b>您的验证码是${code},有效时间为3分钟！</b>` // html body
     }
+    console.log(code)
+
     // send mail with defined transport object 发送邮件
     return new Promise((resolve, reject) => {
         transporter.sendMail(mailoptions, (err) => {
+            console.log(err)
             if (err) {
                 return reject({
                     code: 500,

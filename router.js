@@ -133,6 +133,7 @@ router.post('/login', async (req, res) => {
 // 处理登录邮箱验证码请求
 router.post('/login/mail', async (req, res) => {
     const email = req.body.email
+    console.log(email)
     if (email.length === 0) return res.status(200).json({
         code: -1,
         msg: '邮箱不能为空！'
@@ -146,6 +147,7 @@ router.post('/login/mail', async (req, res) => {
     }
     const code = parseInt(Math.random() * 1000000)
     const data = await sendCode(code, email)
+    console.log(data)
     // 判断邮箱验证码，是否发送成功
     if (data.code !== 200) return res.status(200).json({
         code: 500,

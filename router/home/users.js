@@ -25,6 +25,7 @@ router.get('/home/users', async (req, res) => {
         if (data.code === 1) {
             return res.status(200).json({
                 code: 1,
+                total:data.total,
                 data: data.result,
                 msg: data.msg
             })
@@ -153,10 +154,11 @@ router.delete('/home/rehistory', async (req, res) => {
 // 处理支付请求
 router.put('/home/pay', async (req, res) => {
     const params = req.body
-    const price = params.price
+    const price = params.price*100
     // 查询当前用户所欠金额
     const { result: userinfo } = await find(users, { 'username': params.username })
     // 判断缴费是否大于最大金额
+    // console.log(userinfo)
     if (price > userinfo[0].minute) {
         return res.status(200).json({
             code: 200,
