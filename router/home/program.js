@@ -45,7 +45,6 @@ function deleteFile(delPath, direct) {
 router.get('/home/program', async (req, res) => {
     if (JSON.stringify(req.query) == '{}') {
         const alldata = await programs.find({})
-
         return res.status(200).json({
             code: 0,
             data: alldata,
@@ -56,29 +55,32 @@ router.get('/home/program', async (req, res) => {
     const type = req.query.sort
 
     let result
+    let program
+    let total
     try {
-        const program = await programs.findOne({ 'title': query.title })
+        let Allprogram = await programs.findOne({ 'title': query.title })
+        program = Allprogram.data
+        total = program.length
         // console.log(program)
         // 根据传过来的id查询指定的数据,视频名称来查询对应数据
         if (query.id || query.name) {
             let index
             let finddata
             if (query.id) {
-                index = program.data.findIndex((item) => {
+                index = program.findIndex((item) => {
                     return item._id == query.id
                 })
-
             } else {
                 // 模糊查询
                 // console.log(query.name)
                 const reg = new RegExp(query.name, 'i')
                 // console.log(program.data)
-                finddata = program.data.filter((item) => {
+                finddata = program.filter((item) => {
                     return reg.test(item.title)
                 })
                 if (finddata.length === 0) return res.status(200).json({
                     code: 500,
-                    msg: '查询失败,没有收录该视频!'
+                    msg: '暂无记录！'
                 })
                 return res.status(200).json({
                     code: 1,
@@ -98,33 +100,62 @@ router.get('/home/program', async (req, res) => {
                 data: finddata.data
             })
         }
+        if (query.query) {
+            let where = JSON.parse(query.query)
+            let Find = {}
+            // 处理查询条件
+            for (key in where) {
+                if (!where[key]) {
+                    delete where[key]
+                } else {
+                    const reg = new RegExp(where[key], 'i')
+                    Find['data.' + key] = { $regex: reg }
+                }
+            }
+            Find['title'] = query.title
+            let Fprogram = await programs.aggregate([{ "$unwind": "$data" },
+            {
+                "$match": Find
+            },
+            { "$project": { "data": 1 } }])
+            // 处理查询到的数据
+            const Sprogram = []
+            Fprogram.forEach(item=>{
+                Sprogram.push(item.data)
+            })
+            program = Sprogram
+            total = program.length
+        }
         // 获取全部数据
-        const total = program.data.length
+
 
         // 根据type对数据进行排序
         if (type === 'new') {
-            program.data.forEach((item) => {
-                item.updatetime = new Date(item.updatetime + '')
-                //    console.log(item.updatetime)
+            console.log(program)
+            program.forEach((item) => {
+                let dt = new Date(item.updatetime)
+                item.updatetime = dt.valueOf()
+                // console.log(item.updatetime)
             })
-            result = program.data.sort((a, b) => {
+            result = program.sort((a, b) => {
                 return b.updatetime - a.updatetime;
             })
         } else if (type === 'hot') {
 
-            result = program.data.sort((a, b) => {
+            result = program.sort((a, b) => {
                 return b.hot - a.hot
             })
-            // result = program.data
+            // result = program
         } else if (type === 'recommend') {
-            result = program.data.sort((a, b) => {
+            result = program.sort((a, b) => {
                 // console.log(a.Favorite,b.Favorite)
                 return b.Favorite - a.Favorite
             })
         }
         if (result.length === 0) return res.status(200).json({
             code: 0,
-            msg: '获取电影数据失败'
+            msg: '获取数据失败!',
+            data:[]
         })
         res.status(200).json({
             code: 1,
@@ -147,7 +178,6 @@ router.get('/home/program', async (req, res) => {
 router.post('/home/program', async (req, res) => {
     // 拿到请求体
     const body = req.body
-    // console.log(body)
     try {
         const data = await programs.update({ 'title': body.title }, {
             '$push': {
@@ -191,7 +221,7 @@ router.delete('/home/program', async (req, res) => {
         console.log(result)
         if (!result.deletedCount) return res.status(200).json({
             code: 500,
-            msg: '删除失败！'
+            msg: '删除视频链接失败！'
         })
         // 删除对应节目的图片
         const finddata = await finddataOne(params.title, params.id)
@@ -211,7 +241,7 @@ router.delete('/home/program', async (req, res) => {
         if (data.nModified !== 1) {
             return res.status(200).json({
                 code: 0,
-                msg: '删除失败'
+                msg: '删除图片失败'
             })
         }
         return res.status(200).json({
@@ -373,12 +403,10 @@ router.post('/home/program/upload', upload.single('program'), async (req, res) =
                 const finddata = await programs.findOne({ title: title }, { data: { $slice: [index, 1] } })
                 const path = finddata.data[0].cover
                 const banner = finddata.data[0].banner
-
                 // 判断是否为cover上传
                 if (cover !== 'undefined') {
                     deleteFile('.' + path, 'direct')
-                } else {
-
+                } else if(banner) {
                     deleteFile('.' + banner, 'direct')
                 }
                 curavatar = newfilename.slice(1)
@@ -428,12 +456,12 @@ router.get('/home/program/comments', async (req, res) => {
         code: 0,
         data: null
     })
-    finddata.forEach(async (item,index) => {
+    finddata.forEach(async (item, index) => {
         // console.log(item.username)
         let data = await users.findOne({ 'username': item.username })
         let avatar = data.avatar
         item.avatar = avatar
-        if (index === finddata.length-1) {
+        if (index === finddata.length - 1) {
             console.log(finddata)
             return res.status(200).json({
                 code: 1,

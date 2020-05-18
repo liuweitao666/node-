@@ -1,6 +1,7 @@
 // const { models } = require('./models/users')
 
 const nodemailer = require("nodemailer");
+const md5 = require('js-md5')
 
 // 查询方法
 exports.find = async (models, req) => {
@@ -65,7 +66,7 @@ exports.find = async (models, req) => {
     // console.log(alluser)
     // 限制查询
     if (req.type === 'common') {
-        let alldata =  await models.find({ 'status': 0 })
+        let alldata = await models.find({ 'status': 0 })
         total = alldata.length
         data = await models.find({ 'status': 0 }).skip((pagenum - 1) * limit).limit(limit)
     } else {
@@ -106,8 +107,36 @@ exports.deleted = async (models, params) => {
 // 修改方法
 exports.updated = async (models, body) => {
     const id = body._id
+    var data
     try {
-        const data = await models.updateOne({ '_id': id }, body)
+        if (body.Editpassword) {
+            const password = md5(md5(body.password))
+            const newpassword = md5(md5(body.newpassword))
+            // 14e1b600b1fd579f47433b88e8d85291
+            data = await models.find({ '_id': id, 'password': password })
+            // return  console.log(data)
+            if (JSON.stringify(data) === '[]' || !data) return {
+                code: 0,
+                msg: '密码错误请重新输入！'
+            }
+            if (newpassword === password) return {
+                code: 500,
+                msg: '旧密码与新密码不能一致！'
+            }
+            const result = await models.updateOne({ '_id': id }, { password: newpassword })
+            console.log(result)
+            if (result.ok !== 1) return {
+                code: 0,
+                msg: '密码修改失败!'
+            }
+            return {
+                code: 1,
+                msg: '密码修改成功！'
+            }
+        } else {
+            data = await models.updateOne({ '_id': id }, body)
+            console.log(data)
+        }
         // console.log(data)
         if (data.ok !== 1) return {
             code: 0,

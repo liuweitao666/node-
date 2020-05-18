@@ -69,6 +69,7 @@ router.post('/login', async (req, res) => {
     // 接受客户端发送发送过来的post数据
     try {
         const body = req.body
+        console.log(body)
         // 邮箱登录验证
         if (body.email) {
             if (!body.code) return res.status(200).json({
@@ -93,6 +94,7 @@ router.post('/login', async (req, res) => {
             })
         }
         body.password = md5(md5(body.password))
+        // console.log(body.password)
         // 从数据库中查询数据
         if (!(await users.findOne({
             "$or": [{ "username": body.username },
@@ -103,7 +105,11 @@ router.post('/login', async (req, res) => {
                 msg: '用户名/邮箱错误或未注册'
             })
         }
-        if (!(await users.findOne({ "password": body.password }))) {
+        const result = await users.findOne({
+            "password": body.password, "$or": [{ "username": body.username },
+            { "email": body.username }]
+        })
+        if (JSON.stringify(result) === '{}' || !result) {
             return res.status(200).json({
                 error_code: 0,
                 msg: '密码错误'

@@ -77,7 +77,6 @@ router.get('/home/device', async (req, res) => {
         // 搜索对应信息
         else if (query.query && query.query !== '0') {
             const Squery = JSON.parse(query.query)
-            console.log(Squery)
             // 检查数据是否存在空值,有则删除
             for (index in Squery) {
                 if (!Squery[index]) {
@@ -88,7 +87,6 @@ router.get('/home/device', async (req, res) => {
                 const reg = new RegExp(Squery.devicename,'i') 
                 Squery.devicename = {$regex: reg }
              }
-            console.log(Squery)
             // 根据用户的传参查询数据
             data = await device.find(Squery).sort({ '_id': -1 }).skip((pagenum - 1) * limit).limit(limit)
             if (data.length === 0) return res.status(200).json({
